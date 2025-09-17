@@ -31,6 +31,7 @@ export const updateProfileSchema = z.object({
   first_name: z.string().min(1, 'First name is required').max(50).optional(),
   last_name: z.string().min(1, 'Last name is required').max(50).optional(),
   bio: z.string().max(160, 'Bio must be less than 160 characters').optional(),
+   avatar_url: z.string().url().optional(),
   website: z.string().url('Invalid URL').or(z.literal('')).optional(),
   location: z.string().max(100, 'Location must be less than 100 characters').optional(),
   profile_visibility: z.enum(['public', 'private', 'followers_only']).optional(),

@@ -1,41 +1,45 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { withAuth } from '@/lib/middleware/auth';
 import { APP_CONFIG } from '@/lib/utils/constant';
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (req, user) => {
+  return withAuth(request, async (req, currentUser) => {
     try {
       const { searchParams } = new URL(req.url);
       const page = parseInt(searchParams.get('page') || '1');
-      const limit = parseInt(searchParams.get('limit') || APP_CONFIG.USERS_PER_PAGE.toString());
-      const search = searchParams.get('search') || '';
+      const limit = parseInt(searchParams.get('limit') || APP_CONFIG.NOTIFICATIONS_PER_PAGE.toString());
+      const unreadOnly = searchParams.get('unread_only') === 'true';
       
-      const supabase = createClient();
+      const supabase = await createClient();
       
-      let query = (await supabase)
-        .from('users')
-        .select('id, username, first_name, last_name, bio, avatar_url, followers_count, following_count, posts_count, created_at', { count: 'exact' })
-        .eq('is_active', true);
+      let query = supabase
+        .from('notifications')
+        .select(`
+          *,
+          sender:users!notifications_sender_id_fkey(
+            id, username, first_name, last_name, avatar_url
+          ),
+          post:posts(
+            id, content, image_url
+          )
+        `, { count: 'exact' })
+        .eq('recipient_id', currentUser.id);
       
-      // Add search filter if provided
-      if (search) {
-        query = query.or(`username.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+      if (unreadOnly) {
+        query = query.eq('is_read', false);
       }
       
-      // Add pagination
       const from = (page - 1) * limit;
       const to = from + limit - 1;
       
-      const { data: users, error, count } = await query
+      const { data: notifications, error, count } = await query
         .range(from, to)
         .order('created_at', { ascending: false });
       
       if (error) {
         return NextResponse.json(
-          { error: 'Failed to fetch users', message: error.message },
+          { error: 'Failed to fetch notifications', message: error.message },
           { status: 500 }
         );
       }
@@ -44,7 +48,7 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        data: users || [],
+        data: notifications || [],
         pagination: {
           page,
           limit,
@@ -57,7 +61,7 @@ export async function GET(request: NextRequest) {
       
     } catch (error) {
       return NextResponse.json(
-        { error: 'Internal server error', message: 'Failed to fetch users' },
+        { error: 'Internal server error', message: 'Failed to fetch notifications' },
         { status: 500 }
       );
     }

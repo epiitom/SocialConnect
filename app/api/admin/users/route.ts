@@ -1,28 +1,33 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-// app/api/users/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { withAuth } from '@/lib/middleware/auth';
+import { withAdminAuth } from '@/lib/middleware/auth';
 import { APP_CONFIG } from '@/lib/utils/constant';
 
 export async function GET(request: NextRequest) {
-  return withAuth(request, async (req, user) => {
+  return withAdminAuth(request, async (req, admin) => {
     try {
       const { searchParams } = new URL(req.url);
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || APP_CONFIG.USERS_PER_PAGE.toString());
       const search = searchParams.get('search') || '';
+      const status = searchParams.get('status'); // 'active', 'inactive', or null for all
       
-      const supabase = createClient();
+      const supabase = await createClient();
       
-      let query = (await supabase)
+      let query = supabase
         .from('users')
-        .select('id, username, first_name, last_name, bio, avatar_url, followers_count, following_count, posts_count, created_at', { count: 'exact' })
-        .eq('is_active', true);
+        .select('*', { count: 'exact' });
       
       // Add search filter if provided
       if (search) {
-        query = query.or(`username.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%`);
+        query = query.or(`username.ilike.%${search}%,first_name.ilike.%${search}%,last_name.ilike.%${search}%,email.ilike.%${search}%`);
+      }
+      
+      // Add status filter if provided
+      if (status === 'active') {
+        query = query.eq('is_active', true);
+      } else if (status === 'inactive') {
+        query = query.eq('is_active', false);
       }
       
       // Add pagination
