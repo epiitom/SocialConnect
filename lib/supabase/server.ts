@@ -3,12 +3,17 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const createClient = async (): Promise<any> => {
+export const createClient = async (useServiceRole = false): Promise<any> => {
   const cookieStore = await cookies()
+  
+  // Choose the appropriate key based on the parameter
+  const supabaseKey = useServiceRole 
+    ? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY! 
+    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
   
   const client = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY!, // Using service role key for server operations
+    supabaseKey,
     {
       cookies: {
         get: (name: string) => cookieStore.get(name)?.value,
