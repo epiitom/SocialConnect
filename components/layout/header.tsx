@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { NotificationBell } from "@/components/notifications/notification-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { UserSearchModal } from "@/components/search/user-search-modal"
 import { Search, Menu } from "lucide-react"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
@@ -13,6 +14,7 @@ import { useRouter } from "next/navigation"
 export function Header() {
   const { user } = useAuth()
   const [searchQuery, setSearchQuery] = useState("")
+  const [showUserSearch, setShowUserSearch] = useState(false)
   const router = useRouter()
 
   if (!user) return null
@@ -25,6 +27,10 @@ export function Header() {
 
   const handleKeyDown: React.KeyboardEventHandler<HTMLInputElement> = (e) => {
     if (e.key === "Enter") submitSearch()
+  }
+
+  const handleSearchFocus = () => {
+    setShowUserSearch(true)
   }
 
   return (
@@ -52,6 +58,7 @@ export function Header() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onKeyDown={handleKeyDown}
+              onFocus={handleSearchFocus}
               className="pl-10 bg-input/50"
             />
           </div>
@@ -86,10 +93,17 @@ export function Header() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={handleSearchFocus}
             className="pl-10 bg-input/50"
           />
         </div>
       </div>
+
+      {/* User Search Modal */}
+      <UserSearchModal 
+        isOpen={showUserSearch} 
+        onClose={() => setShowUserSearch(false)} 
+      />
     </header>
   )
 }

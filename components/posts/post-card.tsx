@@ -11,6 +11,7 @@ import { toast } from "sonner" // FIXED: Using sonner instead of useToast
 import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
+import { CommentModal } from "./comment-modal"
 
 interface User {
   id: string
@@ -42,19 +43,28 @@ interface Post {
 
 interface PostCardProps {
   post: Post
-  onLikeToggle?: (postId: string, isLiked: boolean) => void
+  onLikeToggle?: (postId: string, isLiked: boolean, likeCount: number) => void
   onCommentClick?: (postId: string) => void
 }
 
 export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) {
   const [isLiking, setIsLiking] = useState(false)
+  const [showComments, setShowComments] = useState(false)
+  const [localLikeCount, setLocalLikeCount] = useState(post.like_count)
+  const [localIsLiked, setLocalIsLiked] = useState(post.is_liked)
 
   const handleLike = async () => {
     if (isLiking) return
 
+    // Optimistic update
+    const newIsLiked = !localIsLiked
+    const newLikeCount = newIsLiked ? localLikeCount + 1 : localLikeCount - 1
+    setLocalIsLiked(newIsLiked)
+    setLocalLikeCount(newLikeCount)
+
     setIsLiking(true)
     try {
-      const method = post.is_liked ? "DELETE" : "POST"
+      const method = localIsLiked ? "DELETE" : "POST"
       const response = await fetch(`/api/posts/${post.id}/like`, { method })
       const data = await response.json()
 
@@ -62,12 +72,16 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
         throw new Error(data.message || "Failed to update like")
       }
 
-      onLikeToggle?.(post.id, !post.is_liked)
+      // Update with actual data from server
+      setLocalLikeCount(data.data.like_count)
+      setLocalIsLiked(data.data.is_liked)
+      onLikeToggle?.(post.id, data.data.is_liked, data.data.like_count)
       
-      // FIXED: Using sonner toast
-      toast.success(post.is_liked ? "Post unliked" : "Post liked")
+      toast.success(data.data.is_liked ? "Post liked" : "Post unliked")
     } catch (error) {
-      // FIXED: Using sonner toast for errors
+      // Revert optimistic update on error
+      setLocalIsLiked(localIsLiked)
+      setLocalLikeCount(localLikeCount)
       toast.error("Failed to update like")
     } finally {
       setIsLiking(false)
@@ -187,17 +201,17 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
               onClick={handleLike}
               disabled={isLiking}
               className={`gap-2 hover:bg-red-500/10 hover:text-red-500 transition-colors ${
-                post.is_liked ? "text-red-500" : "text-muted-foreground"
+                localIsLiked ? "text-red-500" : "text-muted-foreground"
               }`}
             >
-              <Heart className={`h-4 w-4 transition-all ${post.is_liked ? "fill-current scale-110" : ""}`} />
-              <span className="tabular-nums">{post.like_count}</span>
+              <Heart className={`h-4 w-4 transition-all ${localIsLiked ? "fill-current scale-110" : ""}`} />
+              <span className="tabular-nums">{localLikeCount}</span>
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => onCommentClick?.(post.id)}
+              onClick={() => setShowComments(true)}
               className="gap-2 hover:bg-blue-500/10 hover:text-blue-500 text-muted-foreground transition-colors"
             >
               <MessageCircle className="h-4 w-4" />
@@ -246,7 +260,7 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => onCommentClick?.(post.id)}
+                onClick={() => setShowComments(true)}
                 className="text-primary hover:text-primary/80 p-0 h-auto font-medium"
               >
                 View all {post.comment_count} comments
@@ -255,6 +269,17 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
           </div>
         )}
       </CardContent>
+
+      {/* Comment Modal */}
+      <CommentModal
+        postId={post.id}
+        isOpen={showComments}
+        onClose={() => setShowComments(false)}
+        onCommentAdded={(comment) => {
+          // Update local comment count if needed
+          // This could be enhanced to update the parent component's state
+        }}
+      />
     </Card>
   )
 }

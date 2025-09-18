@@ -18,13 +18,14 @@ export async function GET(
         .select('id')
         .eq('user_id', currentUser.id)
         .eq('post_id', postId)
-        .single();
+        .maybeSingle();
       
       // Get current like count
       const { data: post } = await supabase
         .from('posts')
         .select('like_count')
         .eq('id', postId)
+        .eq('is_active', true)
         .single();
       
       return NextResponse.json({
