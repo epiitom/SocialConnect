@@ -9,12 +9,29 @@ import { handleApiError } from '@/lib/utils/error';
 
 export async function GET(request: NextRequest) {
   return withAuth(request, async (req, user) => {
+    const supabase = createClient();
+
+    // Fetch full user profile from "users" table
+    const { data: profile, error } = await (await supabase)
+      .from("users")
+      .select("*")
+      .eq("id", user.id)
+      .single();
+
+    if (error) {
+      return NextResponse.json(
+        { success: false, message: error.message },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      data: user
+      data: profile,
     });
   });
 }
+
 
 export async function PUT(request: NextRequest) {
   return withAuth(request, async (req, user) => {

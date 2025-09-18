@@ -79,25 +79,19 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
-
-    // Optional: Check if email is confirmed (remove if not using email confirmation)
-    // if (!authData.user.email_confirmed_at) {
-    //   return NextResponse.json(
-    //     { error: 'Email not verified', message: 'Please verify your email address before logging in' },
-    //     { status: 401 }
-    //   );
-    // }
     
-    // Get user profile
+    // Get user profile, create if missing
+    let userData: any = null;
+    let userError: any = null;
     const userProfileQuery = await supabase
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
-      .single();
-    
-    const userData = userProfileQuery.data as any;
-    const userError = userProfileQuery.error as any;
-    
+      .maybeSingle();
+
+    userData = userProfileQuery.data as any;
+    userError = userProfileQuery.error as any;
+
     if (userError) {
       console.error('User profile fetch error:', userError);
       return NextResponse.json(
@@ -105,13 +99,51 @@ export async function POST(request: NextRequest) {
         { status: 404 }
       );
     }
-    
+
     if (!userData) {
-      console.error('No user profile found for authenticated user');
-      return NextResponse.json(
-        { error: 'User not found', message: 'User profile not found' },
-        { status: 404 }
-      );
+      // Create minimal profile if missing
+      const baseName = (authData.user.user_metadata?.username
+        || authData.user.email?.split('@')[0]
+        || 'user')
+        .toString()
+        .toLowerCase()
+        .replace(/[^a-z0-9_]/g, '')
+        .slice(0, 20);
+
+      // Ensure username uniqueness by appending short suffix if needed
+      const { data: existingByName } = await supabase
+        .from('users')
+        .select('id')
+        .eq('username', baseName)
+        .maybeSingle();
+
+      const finalUsername = existingByName ? `${baseName}_${String(Date.now()).slice(-4)}` : baseName;
+
+      const createRes = await (supabase.from('users') as any)
+        .upsert({
+          id: authData.user.id,
+          email: authData.user.email,
+          username: finalUsername,
+          first_name: baseName, // better default so UI shows a name
+          last_name: '',
+          is_active: true,
+          is_admin: false,
+          followers_count: 0,
+          following_count: 0,
+          posts_count: 0
+        }, { onConflict: 'id' })
+        .select()
+        .single();
+
+      if (createRes.error) {
+        console.error('Failed to create missing profile:', createRes.error);
+        return NextResponse.json(
+          { error: 'User not found', message: 'Failed to create user profile' },
+          { status: 500 }
+        );
+      }
+
+      userData = createRes.data as any;
     }
     
     // Update last login
@@ -119,9 +151,6 @@ export async function POST(request: NextRequest) {
       .from('users') as any)
       .update({ last_login: new Date().toISOString() })
       .eq('id', userData.id);
-
-    
-  
     
     if (updateError) {
       console.error('Failed to update last login:', updateError);
@@ -139,7 +168,6 @@ export async function POST(request: NextRequest) {
           first_name: userData.first_name,
           last_name: userData.last_name,
           is_admin: userData.is_admin,
-          profile_visibility: userData.profile_visibility,
         },
         access_token: authData.session?.access_token,
         refresh_token: authData.session?.refresh_token,
