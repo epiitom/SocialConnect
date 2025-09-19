@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { UserPlus, UserMinus, Loader2, UserCheck } from "lucide-react"
+import { UserPlus, UserMinus, Loader2, UserCheck, UserX } from "lucide-react"
 import { toast } from "sonner"
 
 interface FollowButtonProps {
@@ -10,10 +10,11 @@ interface FollowButtonProps {
   isFollowing: boolean
   onFollowChange?: (isFollowing: boolean) => void
   size?: "sm" | "default" | "lg"
-  variant?: "default" | "outline" | "ghost"
+  variant?: "default" | "outline" | "ghost" | "destructive"
   disabled?: boolean
   showFollowingState?: boolean
   username?: string
+  className?: string
 }
 
 export function FollowButton({
@@ -25,6 +26,7 @@ export function FollowButton({
   disabled = false,
   showFollowingState = false,
   username,
+  className = "",
 }: FollowButtonProps) {
   const [loading, setLoading] = useState(false)
   const [isHovering, setIsHovering] = useState(false)
@@ -103,13 +105,10 @@ export function FollowButton({
   }
 
   const getButtonText = () => {
-    if (loading) return "Loading..."
+    if (loading) return ""
     
     if (isFollowing) {
-      if (showFollowingState && !isHovering) {
-        return "Following"
-      }
-      return isHovering ? "Unfollow" : "Unfollow"
+      return isHovering ? "Unfollow" : "Following"
     }
     
     return "Follow"
@@ -121,10 +120,7 @@ export function FollowButton({
     }
     
     if (isFollowing) {
-      if (showFollowingState && !isHovering) {
-        return <UserCheck className="h-4 w-4" />
-      }
-      return <UserMinus className="h-4 w-4" />
+      return isHovering ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />
     }
     
     return <UserPlus className="h-4 w-4" />
@@ -138,7 +134,7 @@ export function FollowButton({
   }
 
   const getButtonClassName = () => {
-    let baseClasses = "gap-2 transition-all duration-200"
+    let baseClasses = `gap-2 transition-all duration-200 ${className}`
     
     if (isFollowing) {
       baseClasses += isHovering 
@@ -155,22 +151,35 @@ export function FollowButton({
     return baseClasses
   }
 
+  // If showFollowingState is false and already following, don't show the button
+  if (!showFollowingState && isFollowing) {
+    return null
+  }
+
   return (
     <Button
+      variant={getButtonVariant()}
+      size={size}
       onClick={handleFollow}
+      disabled={loading || disabled}
       onKeyDown={handleKeyDown}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
-      disabled={loading || disabled}
-      size={size}
-      variant={getButtonVariant()}
-      className={getButtonClassName()}
-      aria-label={`${isFollowing ? 'Unfollow' : 'Follow'} ${username ? `@${username}` : 'this user'}`}
+      className={`relative overflow-hidden ${getButtonClassName()}`}
+      aria-label={isFollowing ? "Unfollow user" : "Follow user"}
     >
-      {getButtonIcon()}
-      <span className="font-medium">
-        {getButtonText()}
+      <span className={`flex items-center gap-2 transition-opacity ${loading ? 'opacity-0' : 'opacity-100'}`}>
+        {getButtonIcon()}
+        <span className="font-medium">
+          {getButtonText()}
+        </span>
       </span>
+      
+      {loading && (
+        <span className="absolute inset-0 flex items-center justify-center">
+          <Loader2 className="h-4 w-4 animate-spin" />
+        </span>
+      )}
     </Button>
   )
 }

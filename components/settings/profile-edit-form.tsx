@@ -72,12 +72,14 @@ export function ProfileEditForm() {
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [uploadProgress, setUploadProgress] = useState<number>(0)
   const [isCompressing, setIsCompressing] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const {
     register,
     handleSubmit,
-    formState: { errors, isSubmitting, isDirty },
+    formState: { errors, isSubmitting: isFormSubmitting, isDirty },
     watch,
     reset,
   } = useForm<ProfileFormData>({
@@ -210,56 +212,63 @@ export function ProfileEditForm() {
 
   const onSubmit = async (data: ProfileFormData) => {
     try {
-      setUploadProgress(0)
+      setIsSubmitting(true);
+      setError('');
+
+      const formData = new FormData();
       
-      const formData = new FormData()
-      
-      // Add profile data
-      formData.append("first_name", data.first_name.trim())
-      formData.append("last_name", data.last_name.trim())
-      if (data.bio?.trim()) formData.append("bio", data.bio.trim())
-      if (data.website?.trim()) formData.append("website", data.website.trim())
-      if (data.location?.trim()) formData.append("location", data.location.trim())
+      // Add form data fields
+      if (data.first_name?.trim()) formData.append("first_name", data.first_name.trim());
+      if (data.last_name?.trim()) formData.append("last_name", data.last_name.trim());
+      if (data.bio?.trim()) formData.append("bio", data.bio.trim());
+      if (data.website?.trim()) formData.append("website", data.website.trim());
+      if (data.location?.trim()) formData.append("location", data.location.trim());
       
       // Add image if selected
       if (selectedImage) {
-        formData.append("avatar", selectedImage)
+        formData.append("avatar", selectedImage);
       }
 
       const response = await fetch("/api/users/me", {
         method: "PUT",
         body: formData,
-        credentials: "same-origin",
+        // Don't set Content-Type header - let the browser set it with the correct boundary
         headers: {
           "X-Requested-With": "XMLHttpRequest",
         },
-      })
+      });
 
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        );
       }
 
-      const result = await response.json()
+      const result = await response.json();
       if (!result.success) {
-        throw new Error(result.message || "Failed to update profile")
+        throw new Error(result.message || "Failed to update profile");
       }
 
-      await refreshUser()
-      toast.success("Profile updated successfully!")
+      await refreshUser();
+      toast.success("Profile updated successfully!");
 
       // Reset image selection
-      setSelectedImage(null)
-      setImagePreview(null)
-      setUploadProgress(0)
+      setSelectedImage(null);
+      setImagePreview(null);
+      setUploadProgress(0);
       if (fileInputRef.current) {
-        fileInputRef.current.value = ""
+        fileInputRef.current.value = "";
       }
-
     } catch (error) {
-      console.error("Profile update error:", error)
-      toast.error(error instanceof Error ? error.message : "Failed to update profile")
+      console.error("Profile update error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update profile"
+      );
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const handleReset = () => {
     reset()
@@ -348,7 +357,7 @@ export function ProfileEditForm() {
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isSubmitting || isCompressing}
+                  disabled={isFormSubmitting || isCompressing}
                   className="gap-2"
                 >
                   <Upload className="h-4 w-4" />
@@ -509,7 +518,7 @@ export function ProfileEditForm() {
               type="button"
               variant="outline"
               onClick={handleReset}
-              disabled={!isDirty || isSubmitting}
+              disabled={!isDirty || isFormSubmitting}
               className="sm:w-auto"
             >
               Reset Changes
@@ -517,17 +526,15 @@ export function ProfileEditForm() {
             
             <Button 
               type="submit" 
-              disabled={isSubmitting || isCompressing} 
-              className="bg-primary hover:bg-primary/90 sm:w-auto"
+              disabled={!isDirty && !selectedImage || isFormSubmitting}
+              className="w-full sm:w-auto"
             >
-              {isSubmitting ? (
+              {isFormSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Updating Profile...
+                  Saving...
                 </>
-              ) : (
-                "Update Profile"
-              )}
+              ) : 'Save Changes'}
             </Button>
           </div>
         </form>

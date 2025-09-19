@@ -224,3 +224,4 @@ export function CommentModal({ postId, isOpen, onClose, onCommentAdded }: Commen
     </Dialog>
   )
 }
+

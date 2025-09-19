@@ -65,7 +65,7 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
     setIsLiking(true)
     try {
       const method = localIsLiked ? "DELETE" : "POST"
-      const response = await fetch(`/api/posts/${post.id}/like`, { method })
+      const response = await fetch(`/api/posts/${post.id}/Like`, { method })
       const data = await response.json()
 
       if (!data.success) {

@@ -5,7 +5,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
-import { Switch } from "@/components/ui/switch"
 import { useAuth } from "@/contexts/auth-context"
 import { 
   Shield, 
@@ -14,9 +13,6 @@ import {
   Lock, 
   Loader2, 
   Info, 
-  UserCheck, 
-  MessageCircle,
-  Globe,
   AlertTriangle 
 } from "lucide-react"
 import { toast } from "sonner"
@@ -29,26 +25,10 @@ import {
 
 interface PrivacySettings {
   profile_visibility: "public" | "private" | "followers_only"
-  allow_search_engines: boolean
-  show_online_status: boolean
-  allow_direct_messages: "everyone" | "followers" | "nobody"
-  require_approval_for_followers: boolean
-  show_follower_count: boolean
-  show_following_count: boolean
-  allow_tagging: "everyone" | "followers" | "nobody"
-  show_email: boolean
 }
 
 const DEFAULT_SETTINGS: PrivacySettings = {
   profile_visibility: "public",
-  allow_search_engines: true,
-  show_online_status: true,
-  allow_direct_messages: "everyone",
-  require_approval_for_followers: false,
-  show_follower_count: true,
-  show_following_count: true,
-  allow_tagging: "everyone",
-  show_email: false,
 }
 
 export function PrivacySettings() {
@@ -176,18 +156,6 @@ export function PrivacySettings() {
     },
   ]
 
-  const messageOptions = [
-    { value: "everyone" as const, label: "Everyone" },
-    { value: "followers" as const, label: "Followers Only" },
-    { value: "nobody" as const, label: "Nobody" },
-  ]
-
-  const taggingOptions = [
-    { value: "everyone" as const, label: "Everyone" },
-    { value: "followers" as const, label: "Followers Only" },
-    { value: "nobody" as const, label: "Nobody" },
-  ]
-
   if (loading) {
     return (
       <Card className="backdrop-blur-sm bg-card/80 border-border/50">
@@ -210,7 +178,7 @@ export function PrivacySettings() {
   return (
     <div className="space-y-6">
       {/* Privacy Level Warning */}
-      {settings.profile_visibility === "public" && settings.allow_search_engines && (
+      {settings.profile_visibility === "public" && (
         <Card className="backdrop-blur-sm bg-amber-50/50 dark:bg-amber-950/20 border-amber-200/50 dark:border-amber-800/50">
           <CardContent className="pt-6">
             <div className="flex items-start gap-3">
@@ -218,8 +186,7 @@ export function PrivacySettings() {
               <div>
                 <h4 className="font-medium text-amber-800 dark:text-amber-200">Public Profile Notice</h4>
                 <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
-                  Your profile is currently public and searchable by search engines. 
-                  Consider adjusting your privacy settings if you want more control over who can find you.
+                  Your profile is currently public. Consider adjusting your privacy settings if you want more control over who can find you.
                 </p>
               </div>
             </div>
@@ -281,151 +248,6 @@ export function PrivacySettings() {
                 )
               })}
             </RadioGroup>
-          </div>
-
-          {/* Advanced Privacy Settings */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <Globe className="h-5 w-5" />
-              Search & Discovery
-            </h3>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Search Engine Indexing</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Allow search engines like Google to index your public profile
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.allow_search_engines}
-                  onCheckedChange={(checked) => updateSetting("allow_search_engines", checked)}
-                  disabled={settings.profile_visibility !== "public"}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Require Follower Approval</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Manually approve new followers before they can see your content
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.require_approval_for_followers}
-                  onCheckedChange={(checked) => updateSetting("require_approval_for_followers", checked)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Visibility Settings */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <UserCheck className="h-5 w-5" />
-              Profile Information
-            </h3>
-
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Show Online Status</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Let others see when you&apos;re online or recently active
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_online_status}
-                  onCheckedChange={(checked) => updateSetting("show_online_status", checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Show Follower Count</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display the number of followers on your profile
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_follower_count}
-                  onCheckedChange={(checked) => updateSetting("show_follower_count", checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Show Following Count</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display the number of accounts you follow on your profile
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_following_count}
-                  onCheckedChange={(checked) => updateSetting("show_following_count", checked)}
-                />
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="space-y-1">
-                  <Label className="font-medium">Show Email Address</Label>
-                  <p className="text-sm text-muted-foreground">
-                    Display your email address on your public profile
-                  </p>
-                </div>
-                <Switch
-                  checked={settings.show_email}
-                  onCheckedChange={(checked) => updateSetting("show_email", checked)}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Communication Settings */}
-          <div className="space-y-6">
-            <h3 className="text-lg font-medium flex items-center gap-2">
-              <MessageCircle className="h-5 w-5" />
-              Communication
-            </h3>
-
-            <div className="space-y-6">
-              <div>
-                <Label className="text-base font-medium">Who can send you direct messages?</Label>
-                <RadioGroup
-                  value={settings.allow_direct_messages}
-                  onValueChange={(value) => updateSetting("allow_direct_messages", value as PrivacySettings["allow_direct_messages"])}
-                  className="mt-3"
-                >
-                  {messageOptions.map((option) => (
-                    <div key={option.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={option.value} id={`dm_${option.value}`} />
-                      <Label htmlFor={`dm_${option.value}`} className="cursor-pointer">
-                        {option.label}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-
-              <div>
-                <Label className="text-base font-medium">Who can tag you in posts?</Label>
-                <RadioGroup
-                  value={settings.allow_tagging}
-                  onValueChange={(value) => updateSetting("allow_tagging", value as PrivacySettings["allow_tagging"])}
-                  className="mt-3"
-                >
-                  {taggingOptions.map((option) => (
-                    <div key={option.value} className="flex items-center space-x-2">
-                      <RadioGroupItem value={option.value} id={`tag_${option.value}`} />
-                      <Label htmlFor={`tag_${option.value}`} className="cursor-pointer">
-                        {option.label}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-              </div>
-            </div>
           </div>
 
           {/* Action Buttons */}

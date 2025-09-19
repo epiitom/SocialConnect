@@ -1,15 +1,18 @@
 "use client"
 
-import { useState, useMemo, useCallback } from "react"
+import { useState, useMemo, useCallback, useEffect } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserAvatar } from "./use-avatar"
 import { FollowButton } from "./follow-button"
+import { UserList } from "./user-list"
 import { PostCard } from "@/components/posts/post-card"
 import { PostSkeleton } from "@/components/posts/post-skeleton"
 import { usePosts } from "@/hooks/use-posts"
+import { useFollowers } from "@/hooks/use-followers"
+import { useFollowing } from "@/hooks/use-following"
 import { useAuth } from "@/contexts/auth-context"
 import { 
   MapPin, 
@@ -45,6 +48,8 @@ interface User {
   created_at: string
   last_login?: string
   is_verified?: boolean
+  is_following: boolean
+  followed_at?: string
 }
 
 interface UserProfileProps {
@@ -82,6 +87,17 @@ export function UserProfile({
   const [followersCount, setFollowersCount] = useState(user.followers_count)
   const [activeTab, setActiveTab] = useState("posts")
   const { posts: rawPosts, loading, updatePost, error } = usePosts({ authorId: user.id })
+  const [followers, setFollowers] = useState<User[]>([])
+  const [following, setFollowing] = useState<User[]>([])
+  const [followersPagination, setFollowersPagination] = useState({ page: 1, hasNext: false })
+  const [followingPagination, setFollowingPagination] = useState({ page: 1, hasNext: false })
+  const [loadingFollowers, setLoadingFollowers] = useState(false)
+  const [loadingFollowing, setLoadingFollowing] = useState(false)
+  const [loadingMoreFollowers, setLoadingMoreFollowers] = useState(false)
+  const [loadingMoreFollowing, setLoadingMoreFollowing] = useState(false)
+  const [followersError, setFollowersError] = useState<string | null>(null)
+  const [followingError, setFollowingError] = useState<string | null>(null)
+  const [isFollowingState, setIsFollowingState] = useState(isFollowing)
 
   // Ensure posts is always an array
   const posts = useMemo(() => {
@@ -120,16 +136,12 @@ export function UserProfile({
     }
   }, [onFollowChange, isFollowersOnlyProfile])
 
-  const handleLikeToggle = useCallback((postId: string, isLiked: boolean) => {
-    const post = posts.find((p) => p.id === postId)
-    if (!post) return
-
-    const newLikeCount = post.like_count + (isLiked ? 1 : -1)
+  const handleLikeToggle = useCallback((postId: string, isLiked: boolean, likeCount: number) => {
     updatePost(postId, {
       is_liked: isLiked,
-      like_count: Math.max(0, newLikeCount), // Prevent negative counts
+      like_count: Math.max(0, likeCount), // Prevent negative counts
     })
-  }, [posts, updatePost])
+  }, [updatePost])
 
   const handleWebsiteClick = useCallback((e: React.MouseEvent, website: string) => {
     // Basic URL validation before external navigation
@@ -259,15 +271,225 @@ export function UserProfile({
     )
   }
 
-  const renderPlaceholderTab = (title: string, description: string) => (
-    <Card className="backdrop-blur-sm bg-card/80 border-border/50">
-      <CardContent className="p-8 text-center">
-        <Users className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">{title}</h3>
-        <p className="text-muted-foreground">{description}</p>
-      </CardContent>
-    </Card>
-  )
+  const handleLoadMoreFollowers = useCallback(async () => {
+    if (loadingMoreFollowers || !followersPagination.hasNext) return
+    
+    try {
+      setLoadingMoreFollowers(true)
+      const nextPage = followersPagination.page + 1
+      const response = await fetch(`/api/users/${user.id}/followers?page=${nextPage}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load more followers')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setFollowers(prev => [...prev, ...data.data])
+        setFollowersPagination({
+          page: nextPage,
+          hasNext: data.hasNext
+        })
+      }
+    } catch (error) {
+      console.error('Error loading more followers:', error)
+      toast.error('Failed to load more followers')
+    } finally {
+      setLoadingMoreFollowers(false)
+    }
+  }, [user?.id, followersPagination, loadingMoreFollowers])
+
+  const handleLoadMoreFollowing = useCallback(async () => {
+    if (loadingMoreFollowing || !followingPagination.hasNext) return
+    
+    try {
+      setLoadingMoreFollowing(true)
+      const nextPage = followingPagination.page + 1
+      const response = await fetch(`/api/users/${user.id}/following?page=${nextPage}`)
+      
+      if (!response.ok) {
+        throw new Error('Failed to load more following')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        setFollowing(prev => [...prev, ...data.data])
+        setFollowingPagination({
+          page: nextPage,
+          hasNext: data.hasNext
+        })
+      }
+    } catch (error) {
+      console.error('Error loading more following:', error)
+      toast.error('Failed to load more following')
+    } finally {
+      setLoadingMoreFollowing(false)
+    }
+  }, [user?.id, followingPagination, loadingMoreFollowing])
+
+  // Fetch followers and following data when component mounts
+  useEffect(() => {
+    const fetchFollowers = async () => {
+      try {
+        setLoadingFollowers(true)
+        const response = await fetch(`/api/users/${user.id}/followers?page=1`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch followers')
+        }
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setFollowers(data.data)
+          setFollowersPagination({
+            page: 1,
+            hasNext: data.hasNext
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching followers:', error)
+        setFollowersError('Failed to load followers')
+      } finally {
+        setLoadingFollowers(false)
+      }
+    }
+
+    const fetchFollowing = async () => {
+      try {
+        setLoadingFollowing(true)
+        const response = await fetch(`/api/users/${user.id}/following?page=1`)
+        
+        if (!response.ok) {
+          throw new Error('Failed to fetch following')
+        }
+        
+        const data = await response.json()
+        
+        if (data.success) {
+          setFollowing(data.data)
+          setFollowingPagination({
+            page: 1,
+            hasNext: data.hasNext
+          })
+        }
+      } catch (error) {
+        console.error('Error fetching following:', error)
+        setFollowingError('Failed to load following')
+      } finally {
+        setLoadingFollowing(false)
+      }
+    }
+
+    if (user?.id) {
+      fetchFollowers()
+      fetchFollowing()
+    }
+  }, [user?.id])
+
+  const renderFollowersContent = useCallback(() => {
+    if (!canViewProfile && !isOwnProfile) {
+      return renderPrivateProfileMessage()
+    }
+
+    return (
+      <UserList
+        users={followers}
+        loading={loadingFollowers}
+        error={followersError}
+        onLoadMore={handleLoadMoreFollowers}
+        hasMore={followersPagination.hasNext}
+        loadingMore={loadingMoreFollowers}
+        emptyMessage="This user doesn't have any followers yet."
+        showFollowButton={!isOwnProfile}
+        showFollowDate={isOwnProfile}
+        onFollowChange={(userId, newFollowingState) => {
+          // Update followers list
+          setFollowers(prev => 
+            prev.map(user => 
+              user.id === userId 
+                ? { ...user, is_following: newFollowingState } 
+                : user
+            )
+          )
+          
+          // Update following list
+          setFollowing(prev => 
+            prev.map(user => 
+              user.id === userId 
+                ? { ...user, is_following: newFollowingState } 
+                : user
+            )
+          )
+        }}
+      />
+    )
+  }, [
+    canViewProfile, 
+    isOwnProfile, 
+    followers, 
+    loadingFollowers, 
+    followersError, 
+    handleLoadMoreFollowers, 
+    followersPagination.hasNext, 
+    loadingMoreFollowers,
+    renderPrivateProfileMessage,
+    setFollowers,
+    setFollowing
+  ])
+
+  const renderFollowingContent = useCallback(() => {
+    if (!canViewProfile && !isOwnProfile) {
+      return renderPrivateProfileMessage()
+    }
+
+    return (
+      <UserList
+        users={following}
+        loading={loadingFollowing}
+        error={followingError}
+        onLoadMore={handleLoadMoreFollowing}
+        hasMore={followingPagination.hasNext}
+        loadingMore={loadingMoreFollowing}
+        emptyMessage="This user isn't following anyone yet."
+        showFollowButton={!isOwnProfile}
+        showFollowDate={isOwnProfile}
+        onFollowChange={(userId, newFollowingState) => {
+          // Update followers list
+          setFollowers(prev => 
+            prev.map(user => 
+              user.id === userId 
+                ? { ...user, is_following: newFollowingState } 
+                : user
+            )
+          )
+          
+          // Update following list
+          setFollowing(prev => 
+            prev.map(user => 
+              user.id === userId 
+                ? { ...user, is_following: newFollowingState } 
+                : user
+            )
+          )
+        }}
+      />
+    )
+  }, [
+    canViewProfile, 
+    isOwnProfile, 
+    following, 
+    loadingFollowing, 
+    followingError, 
+    handleLoadMoreFollowing, 
+    followingPagination.hasNext, 
+    loadingMoreFollowing,
+    renderPrivateProfileMessage,
+    setFollowers,
+    setFollowing
+  ])
 
   if (isBlocked) {
     return (
@@ -283,6 +505,60 @@ export function UserProfile({
     )
   }
 
+  const handleFollow = useCallback(async () => {
+    if (!user) return
+    
+    const newFollowingState = !isFollowingState
+    setIsFollowingState(newFollowingState)
+    
+    // Optimistic update for followers count
+    setFollowersCount(newFollowingState 
+      ? followersCount + 1 
+      : Math.max(0, followersCount - 1))
+    
+    try {
+      const method = newFollowingState ? 'POST' : 'DELETE'
+      const response = await fetch(`/api/users/${user.id}/follow`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update follow status')
+      }
+      
+      const data = await response.json()
+      
+      if (data.success) {
+        onFollowChange?.(newFollowingState)
+        
+        // Show toast notification
+        toast.success(
+          newFollowingState ? 'Started following user' : 'Unfollowed user',
+          {
+            action: {
+              label: 'Undo',
+              onClick: () => handleFollow(),
+            },
+          }
+        )
+      }
+    } catch (error) {
+      console.error('Error updating follow status:', error)
+      // Revert optimistic update on error
+      setIsFollowingState(!newFollowingState)
+      setFollowersCount(newFollowingState 
+        ? Math.max(0, followersCount - 1)
+        : followersCount + 1)
+      
+      toast.error('Failed to update follow status')
+    }
+  }, [user, isFollowingState, onFollowChange, followersCount])
+
+  // Handle follow change in the followers/following lists
+  
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -332,13 +608,18 @@ export function UserProfile({
                       </Button>
                     </Link>
                   ) : (
-                    <FollowButton 
-                      userId={user.id} 
-                      isFollowing={isFollowing} 
-                      onFollowChange={handleFollowChange}
-                      username={user.username}
-                      showFollowingState
-                    />
+                    <Button 
+                      variant="outline" 
+                      className="gap-2 bg-transparent" 
+                      onClick={handleFollow}
+                    >
+                      {isFollowingState ? (
+                        <UserPlus className="h-4 w-4" />
+                      ) : (
+                        <UserPlus className="h-4 w-4" />
+                      )}
+                      {isFollowingState ? 'Unfollow' : 'Follow'}
+                    </Button>
                   )}
                 </div>
               </div>
@@ -436,18 +717,12 @@ export function UserProfile({
           {renderPostsContent()}
         </TabsContent>
 
-        <TabsContent value="followers">
-          {renderPlaceholderTab(
-            "Followers", 
-            "View who follows this user. Feature coming soon..."
-          )}
+        <TabsContent value="followers" className="space-y-4">
+          {renderFollowersContent()}
         </TabsContent>
 
-        <TabsContent value="following">
-          {renderPlaceholderTab(
-            "Following", 
-            "View who this user follows. Feature coming soon..."
-          )}
+        <TabsContent value="following" className="space-y-4">
+          {renderFollowingContent()}
         </TabsContent>
       </Tabs>
     </div>

@@ -4,32 +4,61 @@ export class SupabaseStorage {
   private bucket = 'uploads';
 
   async uploadFile(file: File, path: string): Promise<string> {
-    const { data, error } = await supabase.storage
-      .from(this.bucket)
-      .upload(path, file, {
-        cacheControl: '3600',
-        upsert: false
-      });
+    try {
+      const { data, error } = await supabase.storage
+        .from(this.bucket)
+        .upload(path, file, {
+          cacheControl: '3600',
+          upsert: true,
+          contentType: file.type
+        });
 
-    if (error) {
-      throw new Error(`Upload failed: ${error.message}`);
+      if (error) {
+        console.error('Upload error:', error);
+        throw new Error(`Upload failed: ${error.message}`);
+      }
+
+      const { data: { publicUrl } } = supabase.storage
+        .from(this.bucket)
+        .getPublicUrl(data.path);
+
+      if (!publicUrl) {
+        throw new Error('Failed to get public URL for uploaded file');
+      }
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Storage error:', error);
+      throw error;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from(this.bucket)
-      .getPublicUrl(data.path);
-
-    return publicUrl;
   }
 
   async deleteFile(path: string): Promise<void> {
-    const { error } = await supabase.storage
-      .from(this.bucket)
-      .remove([path]);
+    try {
+      const { error } = await supabase.storage
+        .from(this.bucket)
+        .remove([path]);
 
-    if (error) {
-      throw new Error(`Delete failed: ${error.message}`);
+      if (error) {
+        console.error('Delete error:', error);
+        throw new Error(`Delete failed: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Storage delete error:', error);
+      throw error;
     }
+  }
+
+  async getPublicUrl(path: string): Promise<string> {
+    const { data: { publicUrl } } = supabase.storage
+      .from(this.bucket)
+      .getPublicUrl(path);
+
+    if (!publicUrl) {
+      throw new Error('Failed to generate public URL');
+    }
+
+    return publicUrl;
   }
 
   async uploadAvatar(file: File, userId: string): Promise<string> {
