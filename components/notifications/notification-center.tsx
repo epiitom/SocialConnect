@@ -60,7 +60,7 @@ export function NotificationCenter() {
                 <Bell className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground">No notifications yet</p>
                 <p className="text-sm text-muted-foreground mt-2">
-                  When someone likes your posts or follows you, you'll see it here
+                  When someone likes your posts or follows you, you&apos;ll see it here
                 </p>
               </div>
             ) : (

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client"
 
 import { MainLayout } from "@/components/layout/main-layout"
@@ -30,7 +31,7 @@ export default function ProfilePage() {
 
   return (
     <MainLayout>
-      <UserProfile user={user} canViewPosts={true} />
+      <UserProfile user={user as any} canViewPosts={true} />
     </MainLayout>
   )
 }

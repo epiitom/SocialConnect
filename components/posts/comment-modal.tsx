@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -41,14 +41,16 @@ export function CommentModal({ postId, isOpen, onClose, onCommentAdded }: Commen
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
 
-  const fetchComments = async (pageNum = 1, reset = false) => {
+   
+  const fetchComments = useCallback(
+  async (pageNum = 1, reset = false) => {
     try {
       setLoading(true)
       const params = new URLSearchParams({
         page: pageNum.toString(),
-        limit: "20"
+        limit: "20",
       })
-      
+
       const response = await fetch(`/api/posts/${postId}/comments?${params}`)
       const data = await response.json()
 
@@ -56,7 +58,7 @@ export function CommentModal({ postId, isOpen, onClose, onCommentAdded }: Commen
         throw new Error(data.message || "Failed to fetch comments")
       }
 
-      setComments(prev => reset ? data.data : [...prev, ...data.data])
+      setComments((prev) => (reset ? data.data : [...prev, ...data.data]))
       setHasMore(data.pagination?.hasNext || false)
       setPage(pageNum)
     } catch (error) {
@@ -65,7 +67,9 @@ export function CommentModal({ postId, isOpen, onClose, onCommentAdded }: Commen
     } finally {
       setLoading(false)
     }
-  }
+  },
+  [postId] // ✅ depends only on postId
+)
 
   const handleSubmitComment = async () => {
     if (!newComment.trim() || submitting) return
@@ -114,7 +118,7 @@ export function CommentModal({ postId, isOpen, onClose, onCommentAdded }: Commen
       setPage(1)
       setHasMore(false)
     }
-  }, [isOpen, postId])
+  }, [fetchComments, isOpen, postId])
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>

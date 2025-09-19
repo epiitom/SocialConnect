@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner" // FIXED: Using sonner instead of useToast
-import { Heart, MessageCircle, Share, MoreHorizontal } from "lucide-react"
+import { Heart, MessageCircle, Share, MoreHorizontal, Trash } from "lucide-react"
 import { formatDistanceToNow } from "date-fns"
 import Link from "next/link"
 import { CommentModal } from "./comment-modal"
@@ -45,9 +45,11 @@ interface PostCardProps {
   post: Post
   onLikeToggle?: (postId: string, isLiked: boolean, likeCount: number) => void
   onCommentClick?: (postId: string) => void
+  onDelete?: (postId: string) => void
+  currentUserId?: string
 }
 
-export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) {
+export function PostCard({ post, onLikeToggle, onCommentClick, onDelete, currentUserId }: PostCardProps) {
   const [isLiking, setIsLiking] = useState(false)
   const [showComments, setShowComments] = useState(false)
   const [localLikeCount, setLocalLikeCount] = useState(post.like_count)
@@ -145,7 +147,7 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
               </Avatar>
             </Link>
             <div>
-              <Link href={`/users/${post.author.id}`} className="hover:underline">
+              <Link href={`/users/${post.author?.id}`} className="hover:underline">
                 <p className="font-semibold text-foreground">
                   {post.author.first_name || post.author.last_name
                     ? `${post.author.first_name || ''} ${post.author.last_name || ''}`.trim()
@@ -167,9 +169,6 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
               </div>
             </div>
           </div>
-          <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-            <MoreHorizontal className="h-4 w-4" />
-          </Button>
         </div>
 
         {/* Content */}
@@ -226,6 +225,16 @@ export function PostCard({ post, onLikeToggle, onCommentClick }: PostCardProps) 
             >
               <Share className="h-4 w-4" />
             </Button>
+            {post.author.id === currentUserId && onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(post.id)}
+                className="gap-2 hover:bg-red-500/10 hover:text-red-500 text-muted-foreground transition-colors"
+              >
+                <Trash className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
 

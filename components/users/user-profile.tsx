@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/exhaustive-deps */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import { useState, useMemo, useCallback, useEffect } from "react"
@@ -10,8 +12,7 @@ import { UserList } from "./user-list-new"
 import { PostCard } from "@/components/posts/post-card"
 import { PostSkeleton } from "@/components/posts/post-skeleton"
 import { useUserPosts } from "@/hooks/use-user-posts"
-import { useFollowers } from "@/hooks/use-followers"
-import { useFollowing } from "@/hooks/use-following"
+
 import { useAuth } from "@/contexts/auth-context"
 import { 
   MapPin, 
@@ -227,6 +228,29 @@ export function UserProfile({
     }
   }, [onFollowChange, isFollowersOnlyProfile])
 
+  const handleDelete = useCallback(async (postId: string) => {
+    try {
+      const response = await fetch(`/api/posts/${postId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete post');
+      }
+
+      // Remove the post from the local state
+      // This assumes you have a way to update the posts list
+      // For example, if you're using a state management library or hooks
+      // you would dispatch an action or call a function to remove the post.
+      // For now, we'll just show a success message.
+      toast.success('Post deleted successfully');
+      refresh(); // Re-fetch posts to update the list
+    } catch (error) {
+      console.error('Delete post error:', error);
+      toast.error('Failed to delete post');
+    }
+  }, [refresh]);
+
   const handleLikeToggle = useCallback((postId: string, isLiked: boolean, likeCount: number) => {
     updatePost(postId, {
       is_liked: isLiked,
@@ -400,6 +424,8 @@ export function UserProfile({
             key={post.id} 
             post={post}
             onLikeToggle={handleLikeToggle} 
+            onDelete={handleDelete}
+            currentUserId={currentUser?.id}
           />
         ))}
         

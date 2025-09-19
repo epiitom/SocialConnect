@@ -92,7 +92,7 @@ export async function GET(
       .select(
         `
         *,
-        users!posts_author_id_fkey (
+        author:users!posts_author_id_fkey (
           id,
           username,
           first_name,
@@ -128,34 +128,14 @@ export async function GET(
       }
     }
     
-    // FIXED: Format the posts with author information
-    const formattedPosts = (posts || []).map((post: any) => {
-      // Handle both 'profiles' and 'users' field names
-      const author: Profile = post.users || post.profiles || {
-        id: post.author_id,
-        username: 'unknown',
-        first_name: '',
-        last_name: '',
-        avatar_url: ''
-      }
-      
-      // Remove the nested user data
-      const { users, profiles, ...postData } = post
-      
-      return {
-        ...postData,
-        author,
-        is_liked: userLikes.some((like) => like.post_id === post.id),
-        like_count: post.like_count || 0,
-        comment_count: post.comment_count || 0
-      }
-    })
-    
-    console.log(`Found ${formattedPosts.length} posts for user ${userId}`)
-    
+    const postsWithLikes = (posts || []).map(post => ({
+      ...post,
+      is_liked: userLikes.some(like => like.post_id === post.id)
+    }));
+
     return NextResponse.json({
       success: true,
-      data: formattedPosts,
+      data: postsWithLikes,
       pagination: {
         currentPage: page,
         totalPages: Math.ceil((count || 0) / limit),

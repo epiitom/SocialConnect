@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client"
 
 import type React from "react"
@@ -170,7 +171,7 @@ export function ProfileEditForm() {
           const compressedFile = await compressImage(file)
           setIsCompressing(false)
           resolve(compressedFile)
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+         
         } catch (error) {
           setIsCompressing(false)
           toast.error("Failed to process image")

@@ -188,6 +188,11 @@ export async function DELETE(
       }
       
       if (existingPost.author_id !== currentUser.id && !currentUser.is_admin) {
+        console.error('Authorization failed:', {
+          postAuthorId: existingPost.author_id,
+          currentUserId: currentUser.id,
+          isAdmin: currentUser.is_admin
+        });
         return NextResponse.json(
           { error: 'Forbidden', message: 'You can only delete your own posts' },
           { status: 403 }
