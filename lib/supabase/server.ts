@@ -1,39 +1,35 @@
-// lib/supabase/server.ts - NO TYPES VERSION
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
+// lib/supabase/server.ts
+'use server'
+
+import { createServerClient as createSupabaseServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
-export const createClient = async (useServiceRole = false): Promise<any> => {
+export async function createClient() {
   const cookieStore = await cookies()
   
-  // Choose the appropriate key based on the parameter
-  const supabaseKey = useServiceRole 
-    ? process.env.NEXT_SUPABASE_SERVICE_ROLE_KEY! 
-    : process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  
-  const client = createServerClient(
+  return createSupabaseServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    supabaseKey,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get: (name: string) => cookieStore.get(name)?.value,
-        set: (name: string, value: string, options: CookieOptions) => {
+        async get(name: string) {
+          return (await cookieStore).get(name)?.value
+        },
+        async set(name: string, value: string, options: any) {
           try {
-            cookieStore.set({ name, value, ...options })
-          } catch {
-            // Handle cookie setting errors silently
+            ;(await cookieStore).set({ name, value, ...options })
+          } catch (error) {
+            console.error('Error setting cookie:', error)
           }
         },
-        remove: (name: string, options: CookieOptions) => {
+        async remove(name: string, options: any) {
           try {
-            cookieStore.set({ name, value: '', ...options })
-          } catch {
-            // Handle cookie removal errors silently
+            ;(await cookieStore).set({ name, value: '', ...options })
+          } catch (error) {
+            console.error('Error removing cookie:', error)
           }
         },
       },
     }
   )
-  
-  return client as any // Force any type to bypass all type checking
 }

@@ -6,11 +6,10 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { UserAvatar } from "./use-avatar"
-import { FollowButton } from "./follow-button"
-import { UserList } from "./user-list"
+import { UserList } from "./user-list-new"
 import { PostCard } from "@/components/posts/post-card"
 import { PostSkeleton } from "@/components/posts/post-skeleton"
-import { usePosts } from "@/hooks/use-posts"
+import { useUserPosts } from "@/hooks/use-user-posts"
 import { useFollowers } from "@/hooks/use-followers"
 import { useFollowing } from "@/hooks/use-following"
 import { useAuth } from "@/contexts/auth-context"
@@ -25,7 +24,10 @@ import {
   UserPlus,
   FileText,
   Lock,
-  Eye
+  Eye,
+  Loader2,
+  UserCheck,
+  UserX
 } from "lucide-react"
 import Link from "next/link"
 import { formatDistanceToNow, isValid, parseISO } from "date-fns"
@@ -77,7 +79,7 @@ const safeFormatDate = (dateString: string | null | undefined): string | null =>
 
 export function UserProfile({ 
   user, 
-  isFollowing = false, 
+  isFollowing: isFollowingProp = false, 
   canViewPosts = true, 
   onFollowChange,
   isBlocked = false,
@@ -86,7 +88,21 @@ export function UserProfile({
   const { user: currentUser } = useAuth()
   const [followersCount, setFollowersCount] = useState(user.followers_count)
   const [activeTab, setActiveTab] = useState("posts")
-  const { posts: rawPosts, loading, updatePost, error } = usePosts({ authorId: user.id })
+  const [isFollowing, setIsFollowing] = useState(isFollowingProp)
+  const [isBlockedState, setIsBlocked] = useState(isBlocked)
+  const [isMuted, setIsMuted] = useState(false)
+  const [isReporting, setIsReporting] = useState(false)
+  const [isFollowLoading, setIsFollowLoading] = useState(false)
+  const [hoveringUnfollow, setHoveringUnfollow] = useState(false)
+  const { 
+    posts, 
+    loading, 
+    updatePost, 
+    error, 
+    refresh,
+    hasMore,
+    loadMore
+  } = useUserPosts({ userId: user.id })
   const [followers, setFollowers] = useState<User[]>([])
   const [following, setFollowing] = useState<User[]>([])
   const [followersPagination, setFollowersPagination] = useState({ page: 1, hasNext: false })
@@ -99,12 +115,22 @@ export function UserProfile({
   const [followingError, setFollowingError] = useState<string | null>(null)
   const [isFollowingState, setIsFollowingState] = useState(isFollowing)
 
-  // Ensure posts is always an array
-  const posts = useMemo(() => {
-    if (!rawPosts) return []
-    if (Array.isArray(rawPosts)) return rawPosts
-    return []
-  }, [rawPosts])
+  // Infinite scroll for posts
+  useEffect(() => {
+    const handleScroll = () => {
+      if (
+        window.innerHeight + document.documentElement.scrollTop !== document.documentElement.offsetHeight ||
+        loading ||
+        !hasMore
+      ) {
+        return
+      }
+      loadMore()
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [loading, hasMore, loadMore])
 
   const isOwnProfile = currentUser?.id === user.id
   const isPrivateProfile = user.profile_visibility === "private"
@@ -115,8 +141,8 @@ export function UserProfile({
   const profileStats = useMemo(() => ({
     followers: followersCount,
     following: user.following_count,
-    posts: user.posts_count
-  }), [followersCount, user.following_count, user.posts_count])
+    posts: posts.length // Use actual posts count from the filtered list
+  }), [followersCount, user.following_count, posts.length])
 
   // Fixed date formatting with proper validation
   const profileMeta = useMemo(() => {
@@ -125,6 +151,71 @@ export function UserProfile({
     
     return { joinDate, lastSeen }
   }, [user.created_at, user.last_login])
+  
+  // Refresh posts when the active tab changes to ensure fresh data
+  useEffect(() => {
+    if (activeTab === 'posts') {
+      refresh()
+    }
+  }, [activeTab, refresh, user.id])
+
+  const handleFollow = useCallback(async () => {
+    if (isFollowLoading) return
+    
+    const newFollowingState = !isFollowing
+    setIsFollowLoading(true)
+    
+    // Optimistic update
+    setIsFollowing(newFollowingState)
+    setFollowersCount(prev => newFollowingState ? prev + 1 : Math.max(0, prev - 1))
+    
+    try {
+      const method = newFollowingState ? 'POST' : 'DELETE'
+      const response = await fetch(`/api/users/${user.id}/follow`, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        throw new Error('Failed to update follow status')
+      }
+      
+      const data = await response.json()
+      
+      if (!data.success) {
+        throw new Error(data.message || 'Failed to update follow status')
+      }
+      
+      // Update parent component
+      onFollowChange?.(newFollowingState)
+      
+      toast.success(
+        newFollowingState 
+          ? `You are now following ${user.username}` 
+          : `You've unfollowed ${user.username}`,
+        {
+          action: {
+            label: 'Undo',
+            onClick: () => handleFollow(),
+          },
+        }
+      )
+    } catch (error) {
+      console.error('Follow toggle error:', error)
+      // Revert on error
+      setIsFollowing(!newFollowingState)
+      setFollowersCount(prev => newFollowingState ? Math.max(0, prev - 1) : prev + 1)
+      toast.error(
+        error instanceof Error 
+          ? error.message 
+          : 'Failed to update follow status'
+      )
+    } finally {
+      setIsFollowLoading(false)
+    }
+  }, [isFollowing, isFollowLoading, user.id, user.username, onFollowChange]) 
 
   const handleFollowChange = useCallback((newIsFollowing: boolean) => {
     setFollowersCount((prev) => prev + (newIsFollowing ? 1 : -1))
@@ -207,12 +298,41 @@ export function UserProfile({
             <p className="text-sm text-muted-foreground">
               Follow this user to see their content
             </p>
-            <FollowButton 
-              userId={user.id} 
-              isFollowing={isFollowing} 
-              onFollowChange={handleFollowChange}
-              username={user.username}
-            />
+            <Button
+              variant={isFollowing ? 'outline' : 'default'}
+              size="sm"
+              onClick={handleFollow}
+              disabled={isFollowLoading}
+              className={`min-w-[100px] transition-all ${isFollowing ? 'hover:bg-destructive hover:text-destructive-foreground' : ''}`}
+              onMouseEnter={() => isFollowing && setHoveringUnfollow(true)}
+              onMouseLeave={() => isFollowing && setHoveringUnfollow(false)}
+            >
+              {isFollowLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  {isFollowing ? 'Unfollowing...' : 'Following...'}
+                </>
+              ) : isFollowing ? (
+                <>
+                  {hoveringUnfollow ? (
+                    <>
+                      <UserX className="h-4 w-4 mr-1" />
+                      Unfollow
+                    </>
+                  ) : (
+                    <>
+                      <UserCheck className="h-4 w-4 mr-1" />
+                      Following
+                    </>
+                  )}
+                </>
+              ) : (
+                <>
+                  <UserPlus className="h-4 w-4 mr-1" />
+                  Follow
+                </>
+              )}
+            </Button>
           </div>
         )}
       </CardContent>
@@ -227,12 +347,20 @@ export function UserProfile({
         <Card className="backdrop-blur-sm bg-card/80 border-border/50">
           <CardContent className="p-8 text-center">
             <p className="text-destructive">Failed to load posts: {error}</p>
+            <Button 
+              variant="outline" 
+              className="mt-4"
+              onClick={() => refresh()}
+              disabled={loading}
+            >
+              {loading ? 'Loading...' : 'Retry'}
+            </Button>
           </CardContent>
         </Card>
       )
     }
 
-    if (loading) {
+    if (loading && posts.length === 0) {
       return (
         <div className="space-y-4">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -248,11 +376,18 @@ export function UserProfile({
           <CardContent className="p-8 text-center">
             <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">No posts yet</h3>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground mb-4">
               {isOwnProfile 
                 ? "Share your first post to get started!" 
-                : `${user.first_name} hasn't posted anything yet.`}
+                : `${user.first_name || 'This user'} hasn't posted anything yet.`}
             </p>
+            {isOwnProfile && (
+              <Button asChild>
+                <Link href="/new-post">
+                  Create your first post
+                </Link>
+              </Button>
+            )}
           </CardContent>
         </Card>
       )
@@ -263,10 +398,24 @@ export function UserProfile({
         {posts.map((post) => (
           <PostCard 
             key={post.id} 
-            post={post} 
+            post={post}
             onLikeToggle={handleLikeToggle} 
           />
         ))}
+        
+        {/* Loading indicator */}
+        {loading && posts.length > 0 && (
+          <div className="flex justify-center py-4">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        )}
+        
+        {/* No more posts */}
+        {!loading && posts.length === 0 && !error && (
+          <div className="text-center py-8 text-muted-foreground">
+            <p>No posts to show</p>
+          </div>
+        )}
       </div>
     )
   }
@@ -505,60 +654,6 @@ export function UserProfile({
     )
   }
 
-  const handleFollow = useCallback(async () => {
-    if (!user) return
-    
-    const newFollowingState = !isFollowingState
-    setIsFollowingState(newFollowingState)
-    
-    // Optimistic update for followers count
-    setFollowersCount(newFollowingState 
-      ? followersCount + 1 
-      : Math.max(0, followersCount - 1))
-    
-    try {
-      const method = newFollowingState ? 'POST' : 'DELETE'
-      const response = await fetch(`/api/users/${user.id}/follow`, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-      
-      if (!response.ok) {
-        throw new Error('Failed to update follow status')
-      }
-      
-      const data = await response.json()
-      
-      if (data.success) {
-        onFollowChange?.(newFollowingState)
-        
-        // Show toast notification
-        toast.success(
-          newFollowingState ? 'Started following user' : 'Unfollowed user',
-          {
-            action: {
-              label: 'Undo',
-              onClick: () => handleFollow(),
-            },
-          }
-        )
-      }
-    } catch (error) {
-      console.error('Error updating follow status:', error)
-      // Revert optimistic update on error
-      setIsFollowingState(!newFollowingState)
-      setFollowersCount(newFollowingState 
-        ? Math.max(0, followersCount - 1)
-        : followersCount + 1)
-      
-      toast.error('Failed to update follow status')
-    }
-  }, [user, isFollowingState, onFollowChange, followersCount])
-
-  // Handle follow change in the followers/following lists
-  
   return (
     <div className="space-y-6">
       {/* Profile Header */}
@@ -609,16 +704,39 @@ export function UserProfile({
                     </Link>
                   ) : (
                     <Button 
-                      variant="outline" 
-                      className="gap-2 bg-transparent" 
+                      variant={isFollowing ? 'outline' : 'default'}
+                      size="sm"
                       onClick={handleFollow}
+                      disabled={isFollowLoading}
+                      className={`min-w-[100px] transition-all ${isFollowing ? 'hover:bg-destructive hover:text-destructive-foreground' : ''}`}
+                      onMouseEnter={() => isFollowing && setHoveringUnfollow(true)}
+                      onMouseLeave={() => isFollowing && setHoveringUnfollow(false)}
                     >
-                      {isFollowingState ? (
-                        <UserPlus className="h-4 w-4" />
+                      {isFollowLoading ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          {isFollowing ? 'Unfollowing...' : 'Following...'}
+                        </>
+                      ) : isFollowing ? (
+                        <>
+                          {hoveringUnfollow ? (
+                            <>
+                              <UserX className="h-4 w-4 mr-1" />
+                              Unfollow
+                            </>
+                          ) : (
+                            <>
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Following
+                            </>
+                          )}
+                        </>
                       ) : (
-                        <UserPlus className="h-4 w-4" />
+                        <>
+                          <UserPlus className="h-4 w-4 mr-1" />
+                          Follow
+                        </>
                       )}
-                      {isFollowingState ? 'Unfollow' : 'Follow'}
                     </Button>
                   )}
                 </div>

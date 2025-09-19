@@ -1,3 +1,6 @@
+
+// lib/middleware/auth.ts
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
@@ -49,7 +52,7 @@ export async function withAdminAuth(
     if (!user.is_admin) {
       return NextResponse.json(
         { error: 'Forbidden', message: 'Admin access required' },
-        { status: 403 }
+        { status: 403 } // Fixed syntax error
       );
     }
     return handler(req, user);

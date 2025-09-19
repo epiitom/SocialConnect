@@ -6,11 +6,11 @@ import { APP_CONFIG } from '@/lib/utils/constant';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+   context: { params: Promise<{ userId: string }> }
 ) {
   return withAuth(request, async (req, currentUser) => {
     try {
-      const { userId } = params;
+      const { userId } = await context.params;
       const { searchParams } = new URL(req.url);
       const page = parseInt(searchParams.get('page') || '1');
       const limit = parseInt(searchParams.get('limit') || APP_CONFIG.USERS_PER_PAGE.toString());

@@ -166,7 +166,7 @@ export function UserSearchModal({ isOpen, onClose }: UserSearchModalProps) {
             {!loading && query.length >= 2 && users.length === 0 && (
               <div className="text-center py-8 text-muted-foreground">
                 <UserSearch className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No users found for "{query}"</p>
+                <p>No users found for &quot;{query}&quot;</p>
               </div>
             )}
 

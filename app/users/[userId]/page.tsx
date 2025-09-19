@@ -20,6 +20,7 @@ interface User {
   profile_visibility: "public" | "private" | "followers_only"
   followers_count: number
   following_count: number
+   is_following: boolean
   posts_count: number
   is_admin: boolean
   created_at: string
