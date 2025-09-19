@@ -263,20 +263,7 @@ NEXT_PUBLIC_APP_URL=https://your-domain.com
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Support
 
-For support, please open an issue in the GitHub repository or contact the maintainers.
-
-## Roadmap
-
-- [ ] Mobile app (React Native)
-- [ ] Advanced search filters
-- [ ] Story/temporary posts feature
-- [ ] Video upload support
-- [ ] Group/community features
-- [ ] Analytics dashboard
-- [ ] API rate limiting
-- [ ] Content recommendation engine
 
 ## Acknowledgments
 
