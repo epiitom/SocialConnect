@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/posts/route.ts - Fixed version with correct relationship syntax
+// app/api/posts/route.ts - Fixed version with correct column names
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
@@ -58,21 +58,44 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const imageUrl = null
+    let imageUrl = null
 
-    // Handle image upload (simplified for now)
+    // Handle image upload
     if (imageFile && imageFile instanceof File && imageFile.size > 0) {
-      console.log('Image upload detected, but skipping for now to test basic functionality')
-      // TODO: Add image upload logic here once basic posts work
+      console.log('Processing image upload...')
+      
+      try {
+        const fileExt = imageFile.name.split('.').pop()
+        const fileName = `${user.id}-${Date.now()}.${fileExt}`
+        
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('images')
+          .upload(`post-images/${fileName}`, imageFile)
+
+        if (uploadError) {
+          console.error('Image upload error:', uploadError)
+        } else {
+          // Get the public URL
+          const { data } = supabase.storage
+            .from('images')
+            .getPublicUrl(`post-images/${fileName}`)
+          
+          imageUrl = data.publicUrl
+          console.log('Image uploaded successfully:', imageUrl)
+        }
+      } catch (error) {
+        console.error('Image processing error:', error)
+        // Continue without image if upload fails
+      }
     }
 
-    // Create the post with correct relationship syntax
+    // Create the post with correct column name (author_id instead of user_id)
     console.log('Creating post in database...')
     
     const { data: postData, error: postError } = await supabase
       .from('posts')
       .insert({
-        user_id: user.id,
+        author_id: user.id, // Changed from user_id to author_id
         content: content.trim(),
         category,
         image_url: imageUrl
@@ -90,12 +113,12 @@ export async function POST(request: NextRequest) {
 
     console.log('Post created, now fetching with user data...')
 
-    // Fetch the created post with user information using a separate query
+    // Fetch the created post with user information using correct foreign key
     const { data: postWithUser, error: fetchError } = await supabase
       .from('posts')
       .select(`
         *,
-        users!posts_user_id_fkey (
+        users!posts_author_id_fkey (
           id,
           username,
           first_name,
@@ -115,7 +138,13 @@ export async function POST(request: NextRequest) {
         data: {
           ...postData,
           is_liked: false,
-          user: null // We'll handle this on the frontend
+          author: {
+            id: null,
+            username: "Unknown",
+            first_name: "",
+            last_name: "",
+            avatar_url: "/placeholder.svg"
+          }
         }
       })
     }
@@ -128,7 +157,13 @@ export async function POST(request: NextRequest) {
       data: {
         ...postWithUser,
         is_liked: false,
-        user: postWithUser.users
+        author: postWithUser.users || {
+          id: null,
+          username: "Unknown",
+          first_name: "",
+          last_name: "",
+          avatar_url: "/placeholder.svg"
+        }
       }
     })
 
@@ -156,12 +191,12 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '10'), 50)
     const offset = (page - 1) * limit
 
-    // Fetch posts with user data using correct relationship syntax
+    // Fetch posts with user data using correct foreign key
     const { data: posts, error } = await supabase
       .from('posts')
       .select(`
         *,
-        users!posts_user_id_fkey (
+        users!posts_author_id_fkey (
           id,
           username,
           first_name,
@@ -184,7 +219,13 @@ export async function GET(request: NextRequest) {
     // Transform data to match expected format
     const transformedPosts = posts?.map((post: { users: any }) => ({
       ...post,
-      user: post.users,
+      author: post.users || {
+        id: null,
+        username: "Unknown",
+        first_name: "",
+        last_name: "",
+        avatar_url: "/placeholder.svg"
+      },
       users: undefined, // Remove the original users property
       is_liked: false // TODO: Add like status check for authenticated users
     })) || []

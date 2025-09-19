@@ -81,7 +81,14 @@ export function UserProfile({
   const { user: currentUser } = useAuth()
   const [followersCount, setFollowersCount] = useState(user.followers_count)
   const [activeTab, setActiveTab] = useState("posts")
-  const { posts, loading, updatePost, error } = usePosts({ authorId: user.id })
+  const { posts: rawPosts, loading, updatePost, error } = usePosts({ authorId: user.id })
+
+  // Ensure posts is always an array
+  const posts = useMemo(() => {
+    if (!rawPosts) return []
+    if (Array.isArray(rawPosts)) return rawPosts
+    return []
+  }, [rawPosts])
 
   const isOwnProfile = currentUser?.id === user.id
   const isPrivateProfile = user.profile_visibility === "private"

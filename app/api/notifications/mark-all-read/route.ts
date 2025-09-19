@@ -27,6 +27,7 @@ export async function POST(request: NextRequest) {
         message: 'All notifications marked as read'
       });
       
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
       return NextResponse.json(
         { error: 'Internal server error', message: 'Failed to mark all notifications as read' },

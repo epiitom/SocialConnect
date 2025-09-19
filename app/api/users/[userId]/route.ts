@@ -10,7 +10,7 @@ export async function GET(
 ) {
   return withAuth(request, async (req, currentUser) => {
     try {
-      const { userId } = params;
+      const { userId } = await  params;
       const supabase = createClient();
       
       // Get user profile

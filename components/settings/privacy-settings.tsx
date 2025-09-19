@@ -71,7 +71,7 @@ export function PrivacySettings() {
 
   const fetchPrivacySettings = async () => {
     try {
-      const response = await fetch("/api/users/me/privacy", {
+      const response = await fetch("/api/users/me", {
         credentials: "same-origin",
       })
 
@@ -107,7 +107,7 @@ export function PrivacySettings() {
 
     setSaving(true)
     try {
-      const response = await fetch("/api/users/me/privacy", {
+      const response = await fetch("/api/users/me", {
         method: "PUT",
         headers: { 
           "Content-Type": "application/json",

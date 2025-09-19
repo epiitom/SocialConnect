@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, use } from "react"
 import { MainLayout } from "@/components/layout/main-layout"
 import { UserProfile } from "@/components/users/user-profile"
 import { usePrivacyCheck } from "@/hooks/use-privacy-check"
@@ -25,14 +25,17 @@ interface User {
   created_at: string
 }
 
-export default function UserProfilePage({ params }: { params: { userId: string } }) {
+export default function UserProfilePage({ params }: { params: Promise<{ userId: string }> }) {
   const { user: currentUser } = useAuth()
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isFollowing, setIsFollowing] = useState(false)
 
-  const { canViewProfile, canViewPosts, loading: privacyLoading } = usePrivacyCheck(params.userId)
+  // Unwrap the params Promise
+  const { userId } = use(params)
+
+  const { canViewProfile, canViewPosts, loading: privacyLoading } = usePrivacyCheck(userId)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -40,7 +43,7 @@ export default function UserProfilePage({ params }: { params: { userId: string }
         setLoading(true)
         setError(null)
 
-        const response = await fetch(`/api/users/${params.userId}`)
+        const response = await fetch(`/api/users/${userId}`)
         const data = await response.json()
 
         if (!data.success) {
@@ -56,10 +59,10 @@ export default function UserProfilePage({ params }: { params: { userId: string }
       }
     }
 
-    if (params.userId) {
+    if (userId) {
       fetchUser()
     }
-  }, [params.userId])
+  }, [userId])
 
   if (loading || privacyLoading) {
     return (
