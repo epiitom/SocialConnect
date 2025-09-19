@@ -4,11 +4,11 @@ import { withAdminAuth } from '@/lib/middleware/auth';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  context: { params: { userId: string } }
 ) {
+  const { userId } = context.params;
   return withAdminAuth(request, async (req, admin) => {
     try {
-      const { userId } = params;
       const supabase = await createClient();
       
       // Check if user exists

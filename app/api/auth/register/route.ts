@@ -11,7 +11,7 @@ export async function POST(request: NextRequest) {
     const validatedData = registerSchema.parse(body);
     
     // Use service role client for all operations
-    const supabaseAdmin = await createClient(true);
+    const supabaseAdmin = await createClient();
     
     // Check if username is already taken
     const { data: existingUser, error: usernameCheckError } = await supabaseAdmin
