@@ -1,9 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // lib/supabase/server.ts
 'use server'
 
 import { createServerClient as createSupabaseServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import type { CookieOptions } from '@supabase/ssr'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -14,19 +14,21 @@ export async function createClient() {
     {
       cookies: {
         async get(name: string) {
-          return (await cookieStore).get(name)?.value
+          return cookieStore.get(name)?.value
         },
-        async set(name: string, value: string, options: any) {
+        async set(name: string, value: string, options: CookieOptions) {
           try {
-            ;(await cookieStore).set({ name, value, ...options })
+            cookieStore.set({ name, value, ...options })
           } catch (error) {
+            // Handle the error during the render phase
             console.error('Error setting cookie:', error)
           }
         },
-        async remove(name: string, options: any) {
+        async remove(name: string, options: CookieOptions) {
           try {
-            ;(await cookieStore).set({ name, value: '', ...options })
+            cookieStore.set({ name, value: '', ...options })
           } catch (error) {
+            // Handle the error during the render phase
             console.error('Error removing cookie:', error)
           }
         },

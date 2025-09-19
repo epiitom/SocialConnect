@@ -102,7 +102,8 @@ export function UserProfile({
     error, 
     refresh,
     hasMore,
-    loadMore
+    loadMore,
+    removePost
   } = useUserPosts({ userId: user.id })
   const [followers, setFollowers] = useState<User[]>([])
   const [following, setFollowing] = useState<User[]>([])
@@ -230,26 +231,25 @@ export function UserProfile({
 
   const handleDelete = useCallback(async (postId: string) => {
     try {
-      const response = await fetch(`/api/posts/${postId}`, {
-        method: 'DELETE',
-      });
+      const response = await fetch(`/api/posts/${postId}`, { method: 'DELETE' });
+      const payload = await response.json().catch(() => null);
 
       if (!response.ok) {
-        throw new Error('Failed to delete post');
+        const msg = payload?.message || payload?.error || 'Failed to delete post';
+        throw new Error(msg);
       }
 
-      // Remove the post from the local state
-      // This assumes you have a way to update the posts list
-      // For example, if you're using a state management library or hooks
-      // you would dispatch an action or call a function to remove the post.
-      // For now, we'll just show a success message.
-      toast.success('Post deleted successfully');
-      refresh(); // Re-fetch posts to update the list
-    } catch (error) {
-      console.error('Delete post error:', error);
-      toast.error('Failed to delete post');
+      // Optimistically remove from local state
+      removePost(postId);
+      toast.success(payload?.message || 'Post deleted successfully');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to delete post';
+      console.error('Delete post error:', err);
+      toast.error(message);
+      // As a fallback, refresh to resync state if needed
+      refresh();
     }
-  }, [refresh]);
+  }, [removePost, refresh]);
 
   const handleLikeToggle = useCallback((postId: string, isLiked: boolean, likeCount: number) => {
     updatePost(postId, {
