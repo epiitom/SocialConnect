@@ -49,7 +49,7 @@ A modern, full-featured social media platform built with Next.js 14, TypeScript,
 
 1. Clone the repository
 ```bash
-git clone https://github.com/yourusername/socialconnect.git
+git clone https://github.com/epiitome/socialconnect.git
 cd socialconnect
 ```
 
