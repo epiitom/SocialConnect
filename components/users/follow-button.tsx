@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react"
 import { Button } from "@/components/ui/button"
-import { UserPlus, UserMinus, Loader2, UserCheck, UserX } from "lucide-react"
+import { UserPlus, UserCheck, UserX, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 interface FollowButtonProps {

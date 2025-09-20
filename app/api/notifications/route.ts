@@ -59,9 +59,10 @@ export async function GET(request: NextRequest) {
         }
       });
       
-    } catch (error) {
+    } catch (_error) {
+      console.error('Error fetching notifications:', _error);
       return NextResponse.json(
-        { error: 'Internal server error', message: 'Failed to fetch notifications' },
+        { error: 'Internal server error' },
         { status: 500 }
       );
     }

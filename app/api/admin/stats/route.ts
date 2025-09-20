@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { withAdminAuth } from '@/lib/middleware/auth';
 
-export async function GET(request: NextRequest) {
-  return withAdminAuth(request, async (req, admin) => {
+export async function GET(_request: NextRequest) {
+  return withAdminAuth(_request, async () => {
     try {
       const supabase = await createClient();
       
@@ -48,7 +48,7 @@ export async function GET(request: NextRequest) {
         }
       });
       
-    } catch (error) {
+    } catch (_error) {
       return NextResponse.json(
         { error: 'Internal server error', message: 'Failed to fetch statistics' },
         { status: 500 }

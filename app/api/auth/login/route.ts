@@ -80,7 +80,8 @@ export async function POST(request: NextRequest) {
         const { data: users, error: listError } = await supabaseAdmin.auth.admin.listUsers();
         
         if (!listError && users?.users) {
-          const userToConfirm = users.users.find((u: { email: string; }) => u.email === email);
+          // Fix: Handle undefined email property with proper type guard
+          const userToConfirm = users.users.find((user) => user.email === email);
           
           if (userToConfirm) {
             console.log('Found user to confirm:', userToConfirm.id);
@@ -102,8 +103,8 @@ export async function POST(request: NextRequest) {
               
               if (!retryAuthError && retryAuthData.user) {
                 console.log('Login successful after confirmation');
-                authData = retryAuthData; // Now this works because authData is let, not const
-                authError = null; // Clear the error
+                authData = retryAuthData;
+                authError = null;
               } else {
                 console.error('Retry login failed:', retryAuthError);
                 return NextResponse.json(
@@ -157,7 +158,7 @@ export async function POST(request: NextRequest) {
       .from('users')
       .select('*')
       .eq('id', authData.user.id)
-      .single(); // Use single() since we expect exactly one user
+      .single();
     
     let userData = userProfileQuery.data as any;
     const userError = userProfileQuery.error as any;

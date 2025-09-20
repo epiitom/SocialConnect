@@ -41,13 +41,11 @@ function UserListItem({
   user, 
   showFollowButton = true, 
   showFollowDate = false,
-  listType = 'search',
   onFollowChange
 }: { 
   user: User
   showFollowButton?: boolean
   showFollowDate?: boolean
-  listType?: 'followers' | 'following' | 'search'
   onFollowChange?: (userId: string, isFollowing: boolean) => void
 }) {
   const [isLoading, setIsLoading] = useState(false)
@@ -246,7 +244,6 @@ export function UserList({
           user={user}
           showFollowButton={showFollowButton}
           showFollowDate={showFollowDate}
-          listType={listType}
           onFollowChange={onFollowChange}
         />
       ))}

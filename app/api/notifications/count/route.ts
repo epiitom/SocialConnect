@@ -28,9 +28,10 @@ export async function GET(request: NextRequest) {
         }
       });
       
-    } catch (error) {
+    } catch (_error) {
+      console.error('Error fetching unread count:', _error);
       return NextResponse.json(
-        { error: 'Internal server error', message: 'Failed to fetch notification count' },
+        { error: 'Internal server error' },
         { status: 500 }
       );
     }

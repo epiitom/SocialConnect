@@ -56,9 +56,10 @@ export async function POST(
         }
       });
       
-    } catch (error) {
+    } catch (_error) {
+      console.error('Error deactivating user:', _error);
       return NextResponse.json(
-        { error: 'Internal server error', message: 'Failed to update user status' },
+        { error: 'Internal server error', message: 'Failed to deactivate user' },
         { status: 500 }
       );
     }

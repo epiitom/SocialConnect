@@ -6,11 +6,14 @@ export async function GET(request: NextRequest) {
   return withAuth(request, async (req, currentUser) => {
     try {
       const { searchParams } = new URL(req.url);
-      const q = (searchParams.get('q') || '').trim();
+      const query = searchParams.get('q') || '';
       const page = Math.max(1, parseInt(searchParams.get('page') || '1'));
-      const limit = Math.min(20, parseInt(searchParams.get('limit') || '10'));
+      const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '10')));
+      const excludeCurrentUser = searchParams.get('exclude_current') === 'true';
+      const excludeFollowing = searchParams.get('exclude_following') === 'true';
+      const excludeFollowers = searchParams.get('exclude_followers') === 'true';
 
-      if (!q || q.length < 2) {
+      if (!query || query.length < 2) {
         return NextResponse.json({
           success: true,
           data: [],
@@ -25,11 +28,13 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      const supabase = await createClient();
+      const supabase = await createClient(true); // true for server-side usage
       const from = (page - 1) * limit;
       const to = from + limit - 1;
 
       // Search users by username, first_name, last_name
+      const searchQuery = `%${query}%`;
+      
       const { data: users, error, count } = await supabase
         .from('users')
         .select(`
@@ -44,7 +49,7 @@ export async function GET(request: NextRequest) {
           posts_count,
           created_at
         `, { count: 'exact' })
-        .or(`username.ilike.%${q}%,first_name.ilike.%${q}%,last_name.ilike.%${q}%`)
+        .or(`username.ilike.${searchQuery},first_name.ilike.${searchQuery},last_name.ilike.${searchQuery}`)
         .eq('is_active', true)
         .neq('id', currentUser.id) // Exclude current user
         .range(from, to)

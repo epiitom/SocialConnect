@@ -50,7 +50,8 @@ export async function POST(
         message: 'Notification marked as read'
       });
       
-    } catch (error) {
+    } catch (_error) {
+      console.error('Error marking notification as read:', _error);
       return NextResponse.json(
         { error: 'Internal server error', message: 'Failed to mark notification as read' },
         { status: 500 }

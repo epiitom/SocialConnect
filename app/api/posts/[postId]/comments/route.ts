@@ -16,7 +16,7 @@ export async function GET(
     const limit = parseInt(searchParams.get('limit') || '20');
     const offset = (page - 1) * limit;
 
-    const supabase = await createClient(true); // Use service role
+    const supabase = await createClient();
 
     // Get comments with author information
     const { data: comments, error: commentsError } = await supabase
@@ -48,18 +48,18 @@ export async function GET(
     }
 
     // Transform the data to match expected format
-    const transformedComments = comments.map((comment: { id: any; content: any; created_at: any; users: { id: any; username: any; first_name: any; last_name: any; avatar_url: any; }; }) => ({
+    const transformedComments = comments?.map((comment: any) => ({
       id: comment.id,
       content: comment.content,
       created_at: comment.created_at,
       author: {
-        id: comment.users.id,
-        username: comment.users.username,
-        first_name: comment.users.first_name,
-        last_name: comment.users.last_name,
-        avatar_url: comment.users.avatar_url
+        id: comment.users?.id,
+        username: comment.users?.username,
+        first_name: comment.users?.first_name,
+        last_name: comment.users?.last_name,
+        avatar_url: comment.users?.avatar_url
       }
-    }));
+    })) || [];
 
     // Check if there are more comments
     const { count } = await supabase
@@ -97,7 +97,7 @@ export async function POST(
   { params }: { params: { postId: string } }
 ) {
   try {
-    const supabase = await createClient(false); // Regular client for auth
+    const supabase = await createClient();
 
     // Check authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -112,10 +112,8 @@ export async function POST(
     const body = await request.json();
     const validatedData = createCommentSchema.parse(body);
 
-    const supabaseAdmin = await createClient(true); // Service role for database operations
-
     // Verify post exists and is active
-    const { data: post, error: postError } = await supabaseAdmin
+    const { data: post, error: postError } = await supabase
       .from('posts')
       .select('id, is_active')
       .eq('id', params.postId)
@@ -130,7 +128,7 @@ export async function POST(
     }
 
     // Create comment
-    const { data: newComment, error: commentError } = await supabaseAdmin
+    const { data: newComment, error: commentError } = await supabase
       .from('comments')
       .insert({
         content: validatedData.content,
@@ -162,16 +160,17 @@ export async function POST(
     }
 
     // Transform the response data
+    const author = Array.isArray(newComment.users) ? newComment.users[0] : newComment.users;
     const transformedComment = {
       id: newComment.id,
       content: newComment.content,
       created_at: newComment.created_at,
       author: {
-        id: newComment.users.id,
-        username: newComment.users.username,
-        first_name: newComment.users.first_name,
-        last_name: newComment.users.last_name,
-        avatar_url: newComment.users.avatar_url
+        id: author?.id,
+        username: author?.username,
+        first_name: author?.first_name,
+        last_name: author?.last_name,
+        avatar_url: author?.avatar_url
       }
     };
 

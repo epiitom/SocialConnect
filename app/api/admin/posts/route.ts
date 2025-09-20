@@ -1,7 +1,24 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { withAdminAuth } from '@/lib/middleware/auth';
 import { APP_CONFIG } from '@/lib/utils/constant';
+
+type Post = {
+  id: string;
+  title: string;
+  content: string;
+  is_active: boolean;
+  created_at: string;
+  author_id: string;
+  author: {
+    id: string;
+    username: string;
+    first_name: string | null;
+    last_name: string | null;
+    avatar_url: string | null;
+  };
+};
 
 export async function GET(request: NextRequest) {
   return withAdminAuth(request, async (req, admin) => {
@@ -11,16 +28,19 @@ export async function GET(request: NextRequest) {
       const limit = parseInt(searchParams.get('limit') || APP_CONFIG.POSTS_PER_PAGE.toString());
       const status = searchParams.get('status'); // 'active', 'inactive', or null for all
       
-      const supabase = await createClient();
+      const supabase = await createClient(true); // true indicates server-side usage
       
       let query = supabase
         .from('posts')
-        .select(`
-          *,
-          author:users!posts_author_id_fkey(
-            id, username, first_name, last_name, avatar_url
-          )
-        `, { count: 'exact' });
+        .select(
+          `
+            *,
+            author:users!posts_author_id_fkey(
+              id, username, first_name, last_name, avatar_url
+            )
+          `,
+          { count: 'exact' }
+        );
       
       // Add status filter if provided
       if (status === 'active') {
@@ -48,7 +68,7 @@ export async function GET(request: NextRequest) {
       
       return NextResponse.json({
         success: true,
-        data: posts || [],
+        data: (posts as Post[]) || [],
         pagination: {
           page,
           limit,
@@ -60,8 +80,12 @@ export async function GET(request: NextRequest) {
       });
       
     } catch (error) {
+      console.error('Error fetching posts:', error);
       return NextResponse.json(
-        { error: 'Internal server error', message: 'Failed to fetch posts' },
+        { 
+          error: 'Internal server error', 
+          message: error instanceof Error ? error.message : 'Failed to fetch posts' 
+        },
         { status: 500 }
       );
     }
