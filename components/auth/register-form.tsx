@@ -10,8 +10,10 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useAuth } from "@/contexts/auth-context"
-import { Loader2 } from "lucide-react"
+import { Loader2, CheckCircle } from "lucide-react"
 import Link from "next/link"
+
+import { useRouter } from "next/navigation"
 
 const registerSchema = z.object({
   email: z.string().email("Please enter a valid email address"),
@@ -35,8 +37,9 @@ type RegisterFormData = z.infer<typeof registerSchema>
 
 export function RegisterForm() {
   const [error, setError] = useState("")
+  const [isSuccess, setIsSuccess] = useState(false)
   const { signUp } = useAuth()
-
+  const router = useRouter()
   const {
     register,
     handleSubmit,
@@ -68,9 +71,39 @@ export function RegisterForm() {
     try {
       setError("")
       await signUp(data)
+      setIsSuccess(true)
+      
+      // Redirect to login after 2 seconds
+      setTimeout(() => {
+        router.push('/login')
+      }, 2000)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed")
     }
+  }
+
+  if (isSuccess) {
+    return (
+      <Card className="w-full max-w-md mx-auto backdrop-blur-sm bg-card/80 border-border/50">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">Account Created!</CardTitle>
+        </CardHeader>
+        <CardContent className="text-center space-y-4">
+          <div className="flex justify-center">
+            <CheckCircle className="h-16 w-16 text-green-500" />
+          </div>
+          <Alert className="border-green-500/20 bg-green-50/50 dark:bg-green-950/20">
+            <CheckCircle className="h-4 w-4 text-green-500" />
+            <AlertDescription className="text-green-700 dark:text-green-300">
+              Registration successful! Redirecting to login page...
+            </AlertDescription>
+          </Alert>
+          <div className="flex justify-center">
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    )
   }
 
   return (
